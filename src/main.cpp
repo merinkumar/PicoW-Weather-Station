@@ -1,3 +1,66 @@
+/*
+ * Copyright 2022 Jarrod A. Smith (MakerMatrix)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.* Testing/examples for reading/writing flash on the RP2040.
+ * 
+ * This is a weather station project, which measures Temperature, pressure and 
+ * humidity. and display the same in a 0.91in oled display. Also sending the 
+ * data to thingspeak.com channel. This needs a wifi connection to send data to
+ * thingspeak.com, so we need to configure router ssid and pwd, but its not 
+ * coded and its stored in the last portion of the flash memory and rereieved.
+ * This device has two mode, 1.) Normal (regular power up) and acts as a wifi stn
+ * 2.) Config mode, which can be achieved by connecting pin1(GPIO 0) to 3.3V
+ * while booting. In this mode the system acts as a AP and you need to connect
+ * to this device from a mobile or pc using the ssid and pwd confgured in program.
+ * Once connected got to 192.168.4.1 from the connected mobile or pc, where you 
+ * can store the router ssid and pwd which the device uses in normal mode, so when
+ * you change location these details can be changed easily.
+ * 
+ * Resources I drew from:
+ * https://raspberrypi.github.io/pico-sdk-doxygen/group__hardware__flash.html
+ * https://kevinboone.me/picoflash.html
+ * 
+ * You must disable interrupts while programming flash.  This requires you to
+ * include hardware/sync.h and use save_and_disable_interrupts(), then restore_interrupts()
+ * 
+ * You must include hardware/flash.h for the erase/program functions.
+ * Interesting macros defined in flash.h:
+ * FLASH_PAGE_SIZE, FLASH_SECTOR_SIZE, FLASH_BLOCK_SIZE
+ * functions:
+ * flash_range_erase() 
+ * flash_range_program()
+ * 
+ * pico.h gets included from there.  Interesting macros with respect to flash there:
+ * PICO_FLASH_SIZE_BYTES
+ * 
+ * and from addresses.h:
+ * XIP_BASE - the ARM address of the end of the onboard 256KB RAM.
+ * On RP2040 this is 0x10000000 and the first byte of flash is the next address.  
+ * 
+ * Note that the flash_range_erase() and flash_range_program() functions from flash.h
+ * do not use ARM address space, only offsets into flash (i.e. don't count the
+ * first 0x10000000 bytes of address space representing the RAM.
+ * 
+ * But to read, point a pointer directly to a memory-mapped address somewhere in the
+ * flash (so, use XIP_BASE to get past RAM) and read directly from it.
+*/
+
 #include <Arduino.h>
 #include <Adafruit_BMP280.h>
 #include <Adafruit_SSD1306.h>
@@ -203,8 +266,6 @@ void software_reset()
 
 void update_storage() {
 
-  Serial.printf("TEST: ssid : %s",writecred.ssid);
-  Serial.printf("TEST: ssid : %s",writecred.pwd);
   Serial.println("FLASH_PAGE_SIZE = " + String(FLASH_PAGE_SIZE, DEC));
   Serial.println("FLASH_SECTOR_SIZE = " + String(FLASH_SECTOR_SIZE,DEC));
   Serial.println("FLASH_BLOCK_SIZE = " + String(FLASH_BLOCK_SIZE, DEC));
